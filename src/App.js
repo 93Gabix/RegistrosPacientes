@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, UserPlus, Trash2, Eye } from 'lucide-react';
+import { Search, UserPlus, Trash2, Eye, Edit } from 'lucide-react';
 
 export default function PatientRegistry() {
   const [patients, setPatients] = useState([]);
@@ -7,6 +7,7 @@ export default function PatientRegistry() {
   const [searchType, setSearchType] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
+  const [editingId, setEditingId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState({
     nombre: '',
@@ -50,12 +51,30 @@ export default function PatientRegistry() {
 
   const handleSubmit = () => {
     if (formData.nombre && formData.apellido && formData.dni) {
-      const newPatient = {
-        ...formData,
-        id: Date.now(),
-        fechaRegistro: new Date().toLocaleDateString()
-      };
-      setPatients(prev => [...prev, newPatient]);
+      if (editingId) {
+        // Actualizar paciente existente
+        setPatients(prev => prev.map(p => 
+          p.id === editingId 
+            ? { ...formData, id: editingId, fechaRegistro: p.fechaRegistro } 
+            : p
+        ));
+        
+        // Si el paciente editado estaba seleccionado, actualizar la vista de detalles
+        if (selectedPatient?.id === editingId) {
+          setSelectedPatient(prev => ({ ...formData, id: editingId, fechaRegistro: prev.fechaRegistro }));
+        }
+        
+        setEditingId(null);
+      } else {
+        // Crear nuevo paciente
+        const newPatient = {
+          ...formData,
+          id: Date.now(),
+          fechaRegistro: new Date().toLocaleDateString()
+        };
+        setPatients(prev => [...prev, newPatient]);
+      }
+
       setFormData({
         nombre: '',
         apellido: '',
@@ -66,6 +85,32 @@ export default function PatientRegistry() {
       });
       setShowForm(false);
     }
+  };
+
+  const handleEdit = (patient) => {
+    setFormData({
+      nombre: patient.nombre,
+      apellido: patient.apellido,
+      dni: patient.dni,
+      edad: patient.edad,
+      obraSocial: patient.obraSocial,
+      detalles: patient.detalles
+    });
+    setEditingId(patient.id);
+    setShowForm(true);
+  };
+
+  const handleCancel = () => {
+    setFormData({
+      nombre: '',
+      apellido: '',
+      dni: '',
+      edad: '',
+      obraSocial: '',
+      detalles: ''
+    });
+    setEditingId(null);
+    setShowForm(false);
   };
 
   const handleDelete = (id) => {
@@ -148,7 +193,18 @@ export default function PatientRegistry() {
             </select>
             
             <button
-              onClick={() => setShowForm(!showForm)}
+              onClick={() => {
+                setEditingId(null);
+                setFormData({
+                  nombre: '',
+                  apellido: '',
+                  dni: '',
+                  edad: '',
+                  obraSocial: '',
+                  detalles: ''
+                });
+                setShowForm(!showForm);
+              }}
               className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <UserPlus size={20} />
@@ -158,7 +214,9 @@ export default function PatientRegistry() {
 
           {showForm && (
             <div className="bg-gray-50 p-6 rounded-lg mb-6">
-              <h2 className="text-xl font-semibold mb-4">Registrar Nuevo Paciente</h2>
+              <h2 className="text-xl font-semibold mb-4">
+                {editingId ? 'Editar Paciente' : 'Registrar Nuevo Paciente'}
+              </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input
                   type="text"
@@ -214,10 +272,10 @@ export default function PatientRegistry() {
                   onClick={handleSubmit}
                   className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                 >
-                  Guardar
+                  {editingId ? 'Guardar Cambios' : 'Guardar'}
                 </button>
                 <button
-                  onClick={() => setShowForm(false)}
+                  onClick={handleCancel}
                   className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
                 >
                   Cancelar
@@ -263,12 +321,21 @@ export default function PatientRegistry() {
                         <button
                           onClick={() => setSelectedPatient(patient)}
                           className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                          title="Ver detalles"
                         >
                           <Eye size={18} />
                         </button>
                         <button
+                          onClick={() => handleEdit(patient)}
+                          className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
+                          title="Editar"
+                        >
+                          <Edit size={18} />
+                        </button>
+                        <button
                           onClick={() => handleDelete(patient.id)}
                           className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                          title="Eliminar"
                         >
                           <Trash2 size={18} />
                         </button>
@@ -281,7 +348,18 @@ export default function PatientRegistry() {
           </div>
 
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">Detalles del Paciente</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Detalles del Paciente</h2>
+              {selectedPatient && (
+                <button
+                  onClick={() => handleEdit(selectedPatient)}
+                  className="flex items-center gap-2 text-green-600 hover:text-green-700 font-medium text-sm"
+                >
+                  <Edit size={16} />
+                  Editar
+                </button>
+              )}
+            </div>
             {selectedPatient ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
